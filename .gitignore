@@ -6,6 +6,14 @@ venv/
 env/
 .env/
 data/raw/
+
+# Ignorar todos os ficheiros .pkl
+*.pkl
+
+
+# Ou ignorar a pasta de resultados inteira
+results/models/
+
 # =========================
 # 2. CACHE E COMPILAÇÃO (PYTHON)
 # =========================
@@ -46,4 +54,4 @@ config_local.py
 # Descomenta as linhas abaixo se tiveres modelos 3D ou vídeos pesados de AR
 # *.mp4
 # *.obj
-# *.fbx
+# *.fbx*.pkl

@@ -38,7 +38,7 @@ DIVERSITY_BONUS       = 0.1    # bónus por recomendar subreddit diferente
 
 # ── Bandits ───────────────────────────────────────────────────────────────────
 EPSILON               = 0.1    # ε-greedy: probabilidade de exploração
-UCB_C                 = 1.0    # UCB: constante de exploração
+UCB_C                 = 0.1    # baixado de 1.0 — menos exploração agressiva    # UCB: constante de exploração
 
 # ── Q-Learning ────────────────────────────────────────────────────────────────
 Q_ALPHA               = 0.1    # taxa de aprendizagem
@@ -48,11 +48,11 @@ Q_EPSILON_END         = 0.05
 Q_EPSILON_DECAY       = 0.995
 
 # ── DQN ───────────────────────────────────────────────────────────────────────
-DQN_LR                = 1e-3
+DQN_LR                = 3e-4   # baixado — mais estável
 DQN_GAMMA             = 0.95
-DQN_BATCH_SIZE        = 64
-DQN_BUFFER_SIZE       = 10_000
-DQN_TARGET_UPDATE     = 100    # passos entre actualizações da rede-alvo
+DQN_BATCH_SIZE        = 128    # gradientes menos ruidosos
+DQN_BUFFER_SIZE       = 20_000 # mais diversidade no replay
+DQN_TARGET_UPDATE     = 200    # target mais estável    # passos entre actualizações da rede-alvo
 DQN_HIDDEN_DIM        = 128
 DQN_EMBED_DIM         = 32     # dimensão dos embeddings de utilizador/subreddit
 
@@ -64,4 +64,4 @@ REINFORCE_K           = 5      # tamanho da lista top-K recomendada
 # ── Avaliação ─────────────────────────────────────────────────────────────────
 EVAL_K                = 10     # K para Hit Rate@K e NDCG@K
 N_EVAL_EPISODES       = 200
-N_TRAIN_EPISODES      = 2_000
+N_TRAIN_EPISODES      = 5_000  # aumentado de 2000 — necessário para DQN/REINFORCE convergirem
