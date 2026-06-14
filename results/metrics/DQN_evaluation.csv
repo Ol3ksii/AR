@@ -1,0 +1,2 @@
+cumulative_reward,hit_rate@10,ndcg@10,intra_list_diversity,catalog_coverage,novelty,agent
+7.224736660170124,0.44,0.08772709338082073,1.0,0.859,0.9390279659058575,DQN

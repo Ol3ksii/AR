@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import random
 from collections import deque
 
 from src.baselines.baselines import BaseAgent
@@ -24,36 +25,51 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ── Rede neuronal ─────────────────────────────────────────────────────────────
 class DQNNetwork(nn.Module):
-    """
-    Entrada: observação  [user_id, h_sub_0..H-1, h_rew_0..H-1]
-    Saída  : Q-valores para cada subreddit (n_subs)
-    """
-    def __init__(self, n_users: int, n_subs: int, obs_dim: int):
+    def __init__(self, n_users: int, n_subs: int):
         super().__init__()
-        self.user_emb = nn.Embedding(n_users, DQN_EMBED_DIM)
-        self.sub_emb  = nn.Embedding(n_subs + 1, DQN_EMBED_DIM)   # +1 para padding 0
+        self.n_subs = n_subs
+        
+        hidden_dim = DQN_HIDDEN_DIM 
+        
+        # Tower A: User & History Embeddings
+        self.user_emb = nn.Embedding(n_users, hidden_dim)
+        self.history_emb = nn.Embedding(n_subs + 1, hidden_dim, padding_idx=n_subs)
+        
+        # Tower B: Target Subreddit Embeddings 
+        self.target_sub_emb = nn.Embedding(n_subs, hidden_dim)
 
-        # Dimensão de entrada: embed_user + H*embed_sub + H*1 (recompensas)
-        in_dim = DQN_EMBED_DIM + HISTORY_LENGTH * DQN_EMBED_DIM + HISTORY_LENGTH
-
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, DQN_HIDDEN_DIM),
+        # Context Processor (Processes User + History + Rewards)
+        in_dim = hidden_dim + (HISTORY_LENGTH * hidden_dim) + HISTORY_LENGTH
+        
+        self.context_net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim * 2),
+            nn.LayerNorm(hidden_dim * 2),
             nn.ReLU(),
-            nn.Linear(DQN_HIDDEN_DIM, DQN_HIDDEN_DIM),
-            nn.ReLU(),
-            nn.Linear(DQN_HIDDEN_DIM, n_subs)
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.LayerNorm(hidden_dim)
         )
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        # obs shape: (batch, 1 + H + H)
+        # 1. Extract inputs
         user_ids  = obs[:, 0].long()
         sub_ids   = obs[:, 1: 1 + HISTORY_LENGTH].long().clamp(0)
         rews      = obs[:, 1 + HISTORY_LENGTH:]
 
-        u_emb     = self.user_emb(user_ids)                    # (B, E)
-        s_emb     = self.sub_emb(sub_ids).view(obs.size(0), -1)# (B, H*E)
-        x         = torch.cat([u_emb, s_emb, rews], dim=1)
-        return self.net(x)
+        # 2. Build the Context Vector (Tower A)
+        u_emb     = self.user_emb(user_ids)                      # (Batch, Hidden)
+        s_emb     = self.history_emb(sub_ids).view(obs.size(0), -1) # (Batch, H * Hidden)
+        
+        context_in = torch.cat([u_emb, s_emb, rews], dim=1)
+        context_vector = self.context_net(context_in)            # (Batch, Hidden)
+        
+        # 3. Get all catalog embeddings (Tower B)
+        all_subs = torch.arange(self.n_subs, device=obs.device)
+        catalog_vectors = self.target_sub_emb(all_subs)          # (n_subs, Hidden)
+        
+        # 4. Dot Product (Matrix Multiplication)
+        q_values = torch.matmul(context_vector, catalog_vectors.T) # (Batch, n_subs)
+        
+        return q_values
 
 
 # ── Replay Buffer ─────────────────────────────────────────────────────────────
@@ -65,8 +81,7 @@ class ReplayBuffer:
         self.buf.append((obs, action, reward, next_obs, done))
 
     def sample(self, batch_size: int):
-        idx = np.random.choice(len(self.buf), batch_size, replace=False)
-        batch = [self.buf[i] for i in idx]
+        batch = random.sample(self.buf, batch_size)
         obs, actions, rewards, next_obs, dones = zip(*batch)
         return (
             np.array(obs, dtype=np.float32),
@@ -102,8 +117,8 @@ class DQNAgent(BaseAgent):
         self.rng           = np.random.default_rng(seed)
         self.steps         = 0
 
-        self.policy_net = DQNNetwork(n_users, n_subs, obs_dim).to(DEVICE)
-        self.target_net = DQNNetwork(n_users, n_subs, obs_dim).to(DEVICE)
+        self.policy_net = DQNNetwork(n_users, n_subs).to(DEVICE)
+        self.target_net = DQNNetwork(n_users, n_subs).to(DEVICE)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
@@ -111,13 +126,24 @@ class DQNAgent(BaseAgent):
         self.buffer    = ReplayBuffer(DQN_BUFFER_SIZE)
         self.loss_fn   = nn.MSELoss()
 
-    def select_action(self, obs: np.ndarray, user_id: int = None) -> int:
-        if self.rng.random() < self.epsilon:
-            return int(self.rng.integers(self.n_subs))
-        with torch.no_grad():
-            t = torch.FloatTensor(obs).unsqueeze(0).to(DEVICE)
-            q = self.policy_net(t)
-        return int(q.argmax().item())
+    def select_action(self, obs: np.ndarray, user_id: int = None, invalid_actions: list = None) -> int:
+            if invalid_actions is None:
+                invalid_actions = []
+                
+            if self.rng.random() < self.epsilon:
+                valid_actions = list(set(range(self.n_subs)) - set(invalid_actions))
+                if not valid_actions: # Fallback if catalog is exhausted
+                    return int(self.rng.integers(self.n_subs)) 
+                return int(self.rng.choice(valid_actions))
+                
+            with torch.no_grad():
+                t = torch.FloatTensor(obs).unsqueeze(0).to(DEVICE)
+                q_values = self.policy_net(t).squeeze(0)
+                
+                if invalid_actions:
+                    q_values[invalid_actions] = -float('inf')
+                    
+            return int(q_values.argmax().item())
 
     def update(self, obs, action, reward, next_obs, done):
         self.buffer.push(obs, action, reward, next_obs, done)
@@ -144,12 +170,11 @@ class DQNAgent(BaseAgent):
         nn.utils.clip_grad_norm_(self.policy_net.parameters(), 1.0)
         self.optimizer.step()
 
-        # Actualizar rede-alvo
         if self.steps % DQN_TARGET_UPDATE == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        # Decaimento de ε
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        if done:
+            self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     def save(self, path: str):
         torch.save(self.policy_net.state_dict(), path)

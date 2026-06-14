@@ -110,31 +110,29 @@ class RedditRecommendEnv(gym.Env):
         return self._get_obs(), {}
 
     def step(self, action: int):
-        assert self.current_user is not None, "Chama reset() antes de step()"
-        self.step_count += 1
+            assert self.current_user is not None, "Chama reset() antes de step()"
+            self.step_count += 1
 
-        # Recompensa base
-        reward_dict = self.user_reward.get(self.current_user, {})
-        base_reward = reward_dict.get(int(action), 0.0)
+            # Base Reward
+            reward_dict = self.user_reward.get(self.current_user, {})
+            base_reward = reward_dict.get(int(action), 0.0)
 
-        # Penalização por repetição
-        if action in self.episode_subs:
-            base_reward -= REPEAT_PENALTY
+            shaped_reward = base_reward ** 2 
 
-        # Bónus de diversidade
-        if action not in self.episode_subs:
-            base_reward += DIVERSITY_BONUS
+            if action in self.episode_subs:
+                shaped_reward -= REPEAT_PENALTY
+            else:
+                shaped_reward += DIVERSITY_BONUS
 
-        total_reward = float(base_reward)
+            total_reward = float(shaped_reward)
 
-        # Actualizar histórico
-        self.history_subs.append(float(action))
-        self.history_rews.append(total_reward)
-        self.episode_subs.add(action)
+            self.history_subs.append(float(action))
+            self.history_rews.append(total_reward)
+            self.episode_subs.add(action)
 
-        terminated = self.step_count >= self.episode_length
-        truncated  = False
-        return self._get_obs(), total_reward, terminated, truncated, {}
+            terminated = self.step_count >= self.episode_length
+            truncated  = False
+            return self._get_obs(), total_reward, terminated, truncated, {}
 
     def render(self):
         pass  # sem renderização visual
