@@ -247,7 +247,31 @@ Os ficheiros completos de métricas e gráficos encontram-se em:
 results/metrics/
 results/plots/
 ```
+## Prints da Aplicação
 
+### Documentação Swagger da API
+
+![Swagger da API](docs/screenshots/01_swagger_docs.png)
+
+### Endpoint de recomendação
+
+![Endpoint de recomendação](docs/screenshots/02_api_recommend.png)
+
+### Registo de interação e reward shaping
+
+![Interação com reward shaping](docs/screenshots/03_api_interact_reward.png)
+
+### Proxy de conteúdos Reddit
+
+![Proxy Reddit](docs/screenshots/04_api_reddit_proxy.png)
+
+### Backend em execução
+
+![Backend em execução](docs/screenshots/05_backend_terminal.png)
+
+### Frontend com feed e memória do agente
+
+![Frontend com feed e memória do agente](docs/screenshots/06_frontend_feed.png)
 
 ## Autores
 
