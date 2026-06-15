@@ -1,0 +1,57 @@
+# =========================
+# 1. AMBIENTES VIRTUAIS
+# =========================
+venv/
+.venv/
+env/
+.env/
+data/raw/
+
+# Ignorar todos os ficheiros .pkl
+*.pkl
+
+
+# Ou ignorar a pasta de resultados inteira
+results/models/
+
+# =========================
+# 2. CACHE E COMPILAÇÃO (PYTHON)
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# =========================
+# 3. FICHEIROS DE SISTEMA (MAC)
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# =========================
+# 4. EDITORES DE CÓDIGO (VS Code, PyCharm, etc.)
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# 5. SEGREDOS E CONFIGURAÇÕES
+# =========================
+# (NUNCA enviar passwords ou chaves de API para o GitHub)
+.env
+secrets.json
+config_local.py
+
+# =========================
+# 6. LOGS E DADOS (Opcional)
+# =========================
+*.log
+*.sqlite3
+# Descomenta as linhas abaixo se tiveres modelos 3D ou vídeos pesados de AR
+# *.mp4
+# *.obj
+# *.fbx*.pkl
