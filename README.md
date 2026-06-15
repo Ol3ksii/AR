@@ -161,6 +161,17 @@ Exemplo:
 GET http://127.0.0.1:8000/api/reddit/python
 ```
 
+## Nota sobre acesso ao Reddit em tempo real
+
+A componente principal do projeto, incluindo treino, avaliação e comparação dos agentes, utiliza dados previamente processados e não depende de chamadas em tempo real à API do Reddit.
+
+A interface de demonstração inclui, contudo, um endpoint proxy para apresentar conteúdos recentes de subreddits. Devido às restrições atuais de acesso ao Reddit e à necessidade de autenticação para alguns pedidos, este proxy pode necessitar de uma sessão autenticada válida.
+
+Exemplo:
+
+```bash
+export REDDIT_BROWSER_COOKIE="colocar_cookie_local_aqui"
+
 ## Execução do Frontend
 
 Abrir uma segunda janela do terminal e executar:
